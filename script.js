@@ -1,101 +1,119 @@
-// DOM Elements
-const messageArea = document.getElementById('message-area');
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const typingStatus = document.getElementById('typing-status');
-const startCallButton = document.getElementById('start-call');
-const endCallButton = document.getElementById('end-call');
-const localVideo = document.getElementById('local-video');
-const remoteVideo = document.getElementById('remote-video');
+// Generate a random room ID if not in URL
+let roomId = window.location.hash.substring(1);
+if (!roomId) {
+    roomId = Math.random().toString(36).substring(2, 8);
+    window.location.hash = roomId;
+}
 
-// WebRTC Variables
-let localStream;
+document.getElementById('room-id').value = `${window.location.origin}${window.location.pathname}#${roomId}`;
+
+// Copy Room Link
+document.getElementById('copy-btn').addEventListener('click', () => {
+    const roomInput = document.getElementById('room-id');
+    roomInput.select();
+    document.execCommand('copy');
+    alert("Room link copied! Share it with your friend.");
+});
+
+// WebRTC Setup
 let peerConnection;
+const chatBox = document.getElementById('chat-box');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const typingIndicator = document.getElementById('typing-indicator');
 
-// Typing Indicator
-let typingTimeout;
+// Create a simple data channel for messaging
+async function setupWebRTC() {
+    peerConnection = new RTCPeerConnection();
+
+    // Handle incoming messages
+    peerConnection.ondatachannel = (event) => {
+        const dataChannel = event.channel;
+        setupDataChannel(dataChannel);
+    };
+
+    // Create a data channel for sending messages
+    const dataChannel = peerConnection.createDataChannel('chat');
+    setupDataChannel(dataChannel);
+
+    // Create an offer and set it as local description
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    // Simulate signaling (in a real app, this would go through a server)
+    const offerString = JSON.stringify(peerConnection.localDescription);
+    const simulatedRemoteAnswer = await simulateSignaling(offerString);
+
+    // Set the remote description
+    await peerConnection.setRemoteDescription(JSON.parse(simulatedRemoteAnswer));
+}
+
+// Simulate signaling (for demo purposes)
+async function simulateSignaling(offer) {
+    // In a real app, this would be sent to another peer via a server
+    const tempPeer = new RTCPeerConnection();
+    await tempPeer.setRemoteDescription(JSON.parse(offer));
+    const answer = await tempPeer.createAnswer();
+    await tempPeer.setLocalDescription(answer);
+    return JSON.stringify(tempPeer.localDescription);
+}
+
+// Handle data channel events
+function setupDataChannel(channel) {
+    channel.onopen = () => {
+        document.querySelector('.connection-status').textContent = "🟢 Connected";
+    };
+
+    channel.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === 'text') {
+            addMessage(message.content, 'remote');
+        } else if (message.type === 'typing') {
+            typingIndicator.textContent = "Peer is typing...";
+            setTimeout(() => {
+                typingIndicator.textContent = "";
+            }, 2000);
+        }
+    };
+}
+
+// Send a message
+sendBtn.addEventListener('click', () => {
+    const message = messageInput.value;
+    if (message.trim() === '') return;
+
+    // Send via WebRTC data channel
+    if (peerConnection && peerConnection.dataChannel) {
+        peerConnection.dataChannel.send(JSON.stringify({
+            type: 'text',
+            content: message
+        }));
+    }
+
+    addMessage(message, 'local');
+    messageInput.value = '';
+});
+
+// Typing indicator
 messageInput.addEventListener('input', () => {
-    typingStatus.textContent = "Typing...";
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        typingStatus.textContent = "";
-    }, 1000);
-});
-
-// Send Message Function
-function sendMessage() {
-    const message = messageInput.value.trim();
-    if (message) {
-        displayMessage('You', message, true);
-        messageInput.value = '';
-        // In a real app, send to the other user via WebSocket/PeerJS
+    if (peerConnection && peerConnection.dataChannel) {
+        peerConnection.dataChannel.send(JSON.stringify({
+            type: 'typing'
+        }));
     }
-}
-
-sendButton.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
 });
 
-// Display Message in Chat
-function displayMessage(sender, message, isYou = false) {
+// Add message to chat box
+function addMessage(text, sender) {
     const messageElement = document.createElement('div');
-    messageElement.classList.add('message', isYou ? 'you' : 'other');
-    
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    messageElement.innerHTML = `
-        <div>${message}</div>
-        <div class="message-time">${sender} • ${time}</div>
-    `;
-    
-    messageArea.appendChild(messageElement);
-    messageArea.scrollTop = messageArea.scrollHeight;
+    messageElement.classList.add('message');
+    messageElement.textContent = text;
+    if (sender === 'local') {
+        messageElement.style.background = '#d4edda';
+    }
+    chatBox.appendChild(messageElement);
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// WebRTC Video Call
-startCallButton.addEventListener('click', async () => {
-    try {
-        // Get user media (camera & mic)
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
-
-        // Create peer connection (simplified)
-        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-        peerConnection = new RTCPeerConnection(config);
-
-        // Add local stream to connection
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-        });
-
-        // Handle remote stream
-        peerConnection.ontrack = (event) => {
-            remoteVideo.srcObject = event.streams[0];
-        };
-
-        startCallButton.disabled = true;
-        endCallButton.disabled = false;
-
-    } catch (err) {
-        console.error("Error starting call:", err);
-    }
-});
-
-// End Call
-endCallButton.addEventListener('click', () => {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-    }
-    if (peerConnection) {
-        peerConnection.close();
-    }
-    localVideo.srcObject = null;
-    remoteVideo.srcObject = null;
-    startCallButton.disabled = false;
-    endCallButton.disabled = true;
-});
-
-// Demo: Simulate receiving a message after 3 seconds
-setTimeout(() => {
-    displayMessage('Friend', 'Hey there! 👋');
-}, 3000);
+// Initialize WebRTC
+setupWebRTC();

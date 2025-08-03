@@ -1,0 +1,170 @@
+/* Base Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f5f5f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.app-container {
+    display: flex;
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+/* Video Call Section */
+.video-container {
+    flex: 1;
+    background: #1e1e1e;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#remote-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+#local-video {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 25%;
+    max-width: 200px;
+    border: 2px solid white;
+    border-radius: 8px;
+}
+
+.call-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+}
+
+.call-controls button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+#start-call {
+    background: #4CAF50;
+    color: white;
+}
+
+#end-call {
+    background: #f44336;
+    color: white;
+}
+
+/* Chat Section */
+.chat-container {
+    width: 350px;
+    border-left: 1px solid #e0e0e0;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-header {
+    padding: 15px;
+    background: #4CAF50;
+    color: white;
+    text-align: center;
+}
+
+#typing-status {
+    font-size: 12px;
+    color: #e0e0e0;
+    font-style: italic;
+}
+
+#message-area {
+    flex: 1;
+    padding: 15px;
+    overflow-y: auto;
+}
+
+.message {
+    margin-bottom: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.message.you {
+    background: #e3f2fd;
+    margin-left: auto;
+    border-bottom-right-radius: 0;
+}
+
+.message.other {
+    background: #f1f1f1;
+    margin-right: auto;
+    border-bottom-left-radius: 0;
+}
+
+.message-time {
+    font-size: 10px;
+    color: #777;
+    margin-top: 3px;
+}
+
+.chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#message-input {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    outline: none;
+}
+
+#send-button {
+    margin-left: 10px;
+    padding: 10px 15px;
+    background: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .app-container {
+        flex-direction: column;
+        height: 90vh;
+    }
+    .video-container {
+        height: 50%;
+    }
+    .chat-container {
+        width: 100%;
+        height: 50%;
+    }
+}

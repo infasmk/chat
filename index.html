@@ -3,137 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Chat App</title>
+    <title>Anonymous Chat</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 </head>
 <body>
     <div class="app-container">
-        <!-- Video Call Section -->
-        <div class="video-container">
-            <video id="remote-video" autoplay></video>
-            <video id="local-video" autoplay muted></video>
-            <div class="call-controls">
-                <button id="start-call"><i class="fas fa-video"></i> Start Call</button>
-                <button id="end-call" disabled><i class="fas fa-phone-slash"></i> End Call</button>
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>Anonymous Chat</h1>
+                <button id="new-chat-btn"><i class="fas fa-plus"></i> New Chat</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" placeholder="Search chats...">
+            </div>
+            
+            <div class="chat-list" id="chat-list">
+                <!-- Recent chats will appear here -->
             </div>
         </div>
 
-        <!-- Chat Section -->
-        <div class="chat-container">
-            <div class="chat-header">
-                <h2>Live Chat</h2>
-                <span id="typing-status"></span>
+        <!-- Main Chat Area -->
+        <div class="chat-area" id="chat-area">
+            <div class="empty-state">
+                <i class="fas fa-comments"></i>
+                <h2>Start a new chat</h2>
+                <p>Create a room or join one using a link</p>
+                <button id="create-room-btn">Create Room</button>
+                <div class="room-link-box" id="room-link-box" style="display:none">
+                    <input type="text" id="room-link" readonly>
+                    <button id="copy-link-btn"><i class="fas fa-copy"></i></button>
+                </div>
             </div>
-            <div id="message-area"></div>
-            <div class="chat-input">
-                <input type="text" id="message-input" placeholder="Type a message...">
-                <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+
+            <div class="active-chat" id="active-chat" style="display:none">
+                <div class="chat-header">
+                    <div class="partner-info">
+                        <span id="partner-id">Anonymous</span>
+                        <div class="connection-status">
+                            <span class="status-dot"></span>
+                            <span id="status-text">Connecting...</span>
+                        </div>
+                    </div>
+                    <button id="leave-room-btn"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="messages-container" id="message-area">
+                    <!-- Messages will appear here -->
+                </div>
+
+                <div class="typing-indicator" id="typing-indicator">
+                    <span id="typing-text"></span>
+                </div>
+
+                <div class="message-input-container">
+                    <input type="text" id="message-input" placeholder="Type a message...">
+                    <button id="send-button"><i class="fas fa-paper-plane"></i></button>
+                </div>
             </div>
         </div>
     </div>
-    <script>
-        // DOM Elements
-const messageArea = document.getElementById('message-area');
-const messageInput = document.getElementById('message-input');
-const sendButton = document.getElementById('send-button');
-const typingStatus = document.getElementById('typing-status');
-const startCallButton = document.getElementById('start-call');
-const endCallButton = document.getElementById('end-call');
-const localVideo = document.getElementById('local-video');
-const remoteVideo = document.getElementById('remote-video');
 
-// WebRTC Variables
-let localStream;
-let peerConnection;
+    <!-- Connection Modal -->
+    <div class="modal" id="connection-modal">
+        <div class="modal-content">
+            <h2>Join a Chat Room</h2>
+            <input type="text" id="room-id-input" placeholder="Enter room ID">
+            <div class="modal-buttons">
+                <button id="join-room-btn">Join Room</button>
+                <button id="cancel-join-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
 
-// Typing Indicator
-let typingTimeout;
-messageInput.addEventListener('input', () => {
-    typingStatus.textContent = "Typing...";
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-        typingStatus.textContent = "";
-    }, 1000);
-});
-
-// Send Message Function
-function sendMessage() {
-    const message = messageInput.value.trim();
-    if (message) {
-        displayMessage('You', message, true);
-        messageInput.value = '';
-        // In a real app, send to the other user via WebSocket/PeerJS
-    }
-}
-
-sendButton.addEventListener('click', sendMessage);
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-});
-
-// Display Message in Chat
-function displayMessage(sender, message, isYou = false) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', isYou ? 'you' : 'other');
-    
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    messageElement.innerHTML = `
-        <div>${message}</div>
-        <div class="message-time">${sender} • ${time}</div>
-    `;
-    
-    messageArea.appendChild(messageElement);
-    messageArea.scrollTop = messageArea.scrollHeight;
-}
-
-// WebRTC Video Call
-startCallButton.addEventListener('click', async () => {
-    try {
-        // Get user media (camera & mic)
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideo.srcObject = localStream;
-
-        // Create peer connection (simplified)
-        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-        peerConnection = new RTCPeerConnection(config);
-
-        // Add local stream to connection
-        localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, localStream);
-        });
-
-        // Handle remote stream
-        peerConnection.ontrack = (event) => {
-            remoteVideo.srcObject = event.streams[0];
-        };
-
-        startCallButton.disabled = true;
-        endCallButton.disabled = false;
-
-    } catch (err) {
-        console.error("Error starting call:", err);
-    }
-});
-
-// End Call
-endCallButton.addEventListener('click', () => {
-    if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-    }
-    if (peerConnection) {
-        peerConnection.close();
-    }
-    localVideo.srcObject = null;
-    remoteVideo.srcObject = null;
-    startCallButton.disabled = false;
-    endCallButton.disabled = true;
-});
-
-// Demo: Simulate receiving a message after 3 seconds
-setTimeout(() => {
-    displayMessage('Friend', 'Hey there! 👋');
-}, 3000);
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>

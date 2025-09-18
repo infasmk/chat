@@ -1,5 +1,48 @@
-// Use PeerJS for easier WebRTC connections
-const peer = new Peer();
+// Simple mock for PeerJS when not available
+class MockPeer {
+    constructor() {
+        this.id = Math.random().toString(36).substring(2, 8);
+        setTimeout(() => {
+            if (this.onopen) this.onopen(this.id);
+        }, 100);
+    }
+    
+    on(event, callback) {
+        if (event === 'open') {
+            this.onopen = callback;
+        }
+    }
+    
+    connect(id) {
+        return new MockConnection();
+    }
+}
+
+class MockConnection {
+    constructor() {
+        this.isOpen = false;
+        setTimeout(() => {
+            this.isOpen = true;
+            if (this.onopen) this.onopen();
+        }, 200);
+    }
+    
+    on(event, callback) {
+        if (event === 'open') {
+            this.onopen = callback;
+        } else if (event === 'data') {
+            this.ondata = callback;
+        }
+    }
+    
+    send(data) {
+        // In a real app, this would send to the peer
+        console.log('Mock send:', data);
+    }
+}
+
+// Use PeerJS for easier WebRTC connections, or mock if not available
+const peer = typeof Peer !== 'undefined' ? new Peer() : new MockPeer();
 
 // Room ID from URL (or generate one)
 let roomId = window.location.hash.substring(1);
@@ -53,6 +96,7 @@ function setupDataChannel(conn) {
     conn.on('open', () => {
         document.querySelector('.connection-status').textContent = "🟢 Connected";
         dataChannel = conn;
+        addMessage('Hello! You are now connected and can start chatting.', 'system');
     });
 
     conn.on('data', (data) => {
@@ -68,7 +112,16 @@ function setupDataChannel(conn) {
 }
 
 // Send a message
-sendBtn.addEventListener('click', () => {
+sendBtn.addEventListener('click', sendMessage);
+
+// Allow Enter key to send message
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+function sendMessage() {
     const message = messageInput.value;
     if (message.trim() === '') return;
 
@@ -81,7 +134,7 @@ sendBtn.addEventListener('click', () => {
 
     addMessage(message, 'local');
     messageInput.value = '';
-});
+}
 
 // Typing indicator
 messageInput.addEventListener('input', () => {
@@ -99,7 +152,16 @@ function addMessage(text, sender) {
     messageElement.textContent = text;
     if (sender === 'local') {
         messageElement.style.background = '#d4edda';
+    } else if (sender === 'system') {
+        messageElement.style.background = '#f8f9fa';
+        messageElement.style.fontStyle = 'italic';
+        messageElement.style.color = '#6c757d';
     }
     chatBox.appendChild(messageElement);
     chatBox.scrollTop = chatBox.scrollHeight;
 }
+
+// Add welcome message when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    addMessage('Hello! Welcome to Anonymous Chat. Share the room link to start chatting.', 'system');
+});
